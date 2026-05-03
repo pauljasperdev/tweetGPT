@@ -39,14 +39,21 @@ const maybeReturnTopic = async (): Promise<string | undefined> => {
 }
 
 const addGPTButtonWithType = (toolbarEl: Element, onClick: (type: string, topic?: string) => Promise<void>) => {
+    if (toolbarEl.querySelector(".gptIconWrapper")) {
+        return;
+    }
+
+    const buttonContainer = toolbarEl.children[0];
+    if (!buttonContainer) {
+        return;
+    }
+
     const doc = new DOMParser().parseFromString(`
         <div class="gptIconWrapper" id="gptButton">
             <img class="gptIcon" src="${gptIconSrc}" />
         </div>
     `, "text/html");
     const iconWrap = doc.querySelector("div[id=\"gptButton\"]")! as HTMLDivElement;
-
-    const buttonContainer = toolbarEl.children[0];
     
     // attach to container
     buttonContainer.appendChild(iconWrap);

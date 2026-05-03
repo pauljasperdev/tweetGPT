@@ -42,6 +42,11 @@ const onToolBarAdded = (toolBarEl: Element) => {
 const onToolBarRemoved = (toolBarEl: Element) => {}
 
 // observe dom tree to detect all tweet inputs once they are created
-const toolbarObserver = createObserver("div[data-testid=\"toolBar\"]", onToolBarAdded, onToolBarRemoved);
-const reactRoot = document.querySelector("#react-root") as unknown as Node;
-toolbarObserver.observe(reactRoot, { subtree: true, childList: true });
+const toolbarSelector = "div[data-testid=\"toolBar\"]";
+const toolbarObserver = createObserver(toolbarSelector, onToolBarAdded, onToolBarRemoved);
+const reactRoot = document.querySelector("#react-root");
+
+if (reactRoot) {
+    document.querySelectorAll(toolbarSelector).forEach(onToolBarAdded);
+    toolbarObserver.observe(reactRoot, { subtree: true, childList: true });
+}

@@ -1,10 +1,12 @@
 import { ChatGPTClient, TweetProps } from "./chat_gpt_client/chat_gpt_client";
 
+const xMatches = ["https://twitter.com/*", "https://x.com/*"];
+
 chrome.scripting.registerContentScripts([
     {
         id: `main_context_inject_${Math.random()}`,
         world: "ISOLATED",
-        matches: ["https://twitter.com/*"],
+        matches: xMatches,
         js: ["lib/inject.js"],
         css: ["css/inject.css"],
     },
