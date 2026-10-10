@@ -1,42 +1,78 @@
 <img src="./docs/logo.png" height="128" />
 
-# Archived 
+# Archived
 This open-source version of the extension is no longer supported. You can install the proprietary version from https://typebar.app
 
 # tweetGPT Chrome Extension - Community Edition
-This is an open-source edition of the [TweetGPT chrome extension](https://chrome.google.com/webstore/detail/tweetgpt/lkjblpoingopdeaofcaapmeoojjjnhnc). It doesn't use TweetGPT backend and only relies on your own OpenAI API credentials.
+
+This fork generates tweets through a local helper process. The Chrome extension needs no configuration: it always talks to `http://127.0.0.1:31415`, and the helper only accepts requests from this extension. Codex/ChatGPT subscription auth stays in the helper on your machine.
 
 ## Requirements
-To use this extension, will you need:
-* Twitter account
-* OpenAI [API KEY](https://platform.openai.com/account/api-keys)
-* Chrome browser
 
-## Installation
-1. Clone this repo to your machine
-2. Open [chrome://extensions/](chrome://extensions/) in your browser
-3. Check the box for Developer mode in the top right
-4. Press __Load Unpacked__ button and select the folder with the code
-5. The settings screen should open, where you need to put your OpenAI API Key. You can find your API key on [this page](https://platform.openai.com/account/api-keys).
+- Twitter/X account
+- Chrome browser
+- Node.js 24+ and Bun
+- Codex/ChatGPT subscription access configured through the helper login
 
-You can start using the extension now.
+## Setup
 
+From the repository root:
+
+```bash
+bun install
+bun install --cwd helper
+bun run --cwd helper auth:login
+bun run --cwd helper dev
+```
+
+Then:
+
+1. Open `chrome://extensions/`.
+2. Enable Developer mode.
+3. Click **Load unpacked** and select this repo folder.
+4. Open Twitter/X and generate a tweet.
+
+The manifest pins the extension ID with a `key`, so the helper can recognise the extension by its origin. **Test helper connection** in the TweetGPT settings shows whether the helper is reachable.
+
+## Verification / development
+
+```bash
+bun run typecheck
+bun run build:ext
+bun run build:helper
+bun run test:unit
+bun run verify:helper
+bun run --cwd helper verify --live
+```
+
+Package the extension safely:
+
+```bash
+bun run package:ext
+```
+
+The package step stages only extension runtime files (`manifest.json`, `lib/`, `assets/`, `css/`, `icons/`) and excludes helper code, research files, dependencies, and local tokens.
+
+## Troubleshooting
+
+- **Helper not running**: run `bun run --cwd helper dev`.
+- **Helper rejected this extension**: the extension ID must be `aagnbbkandmecekpffjfbpicoccbbnle`; keep the `key` field in `manifest.json` and reload the extension.
+- **Codex auth missing**: run `bun run --cwd helper auth:login`, then restart the helper.
+- **Model unavailable**: run `bun run --cwd helper auth:status`; by default the helper uses `openai-codex/gpt-6-luna`. Pick another model with `TWEETGPT_MODEL=<id> bun run --cwd helper dev`, e.g. `TWEETGPT_MODEL=gpt-6.1-sol`.
+- **Port conflict**: the port is fixed at `31415` on both sides; stop whatever else is using it.
 
 ## How to use tweetGPT
-When you open a new tab with Twitter, you will see this icon under the tweet section:
+
+When you open Twitter/X, you will see this icon under the tweet section:
 
 <img src="./docs/screenshot.png" height="120">
 
-When you press it, it will let you select a type of tweet to generate. The types include positive, negative, controversial, etc. 
+On a tweet you can reply to, the reply box is focused and five drafts open by themselves, written in the voice described in `helper/voice.md`. Press the icon to get five new ones. Pick one and it is inserted into the composer, where you can keep editing.
 
-<img src="./docs/options.png" height="300">
-
-Once selected, the extension will write a new tweet.
-
-For a reply, it will generate a tweet based on the original tweet. For a new tweet, it will ask for a topic you want to write tweet about.
+For a reply, it generates based on the original tweet. A new tweet uses a placeholder topic for now.
 
 <img src="./docs/reply.gif" height="379" width="609">
 
 ## ⚠️ Warning
-Depending on the tweet type, TweetGPT can sometimes generate controversial or even offensive tweets.
-Remember, this is like an L2 autopilot - the driver is responsible for the outcome. Don't tweet what you disagree with, just re-generate the tweet instead.
+
+Depending on the tweet type, TweetGPT can sometimes generate controversial or offensive tweets. You are responsible for what you post.

@@ -1,55 +1,77 @@
-import { ChatGPTClient, TweetProps } from "./chat_gpt_client/chat_gpt_client";
+import { LocalHelperClient } from './local_helper_client';
+import { STORAGE_KEYS } from '../shared/storage_keys';
+import { TweetProps } from '../shared/tweet_props';
 
-const xMatches = ["https://twitter.com/*", "https://x.com/*"];
+const xMatches = ['https://twitter.com/*', 'https://x.com/*'];
+const allowedOrigins = new Set(['https://twitter.com', 'https://x.com']);
 
 chrome.scripting.registerContentScripts([
     {
         id: `main_context_inject_${Math.random()}`,
-        world: "ISOLATED",
+        world: 'ISOLATED',
         matches: xMatches,
-        js: ["lib/inject.js"],
-        css: ["css/inject.css"],
+        js: ['lib/inject.js'],
+        css: ['css/inject.css'],
     },
 ]);
 
-chrome.runtime.onInstalled.addListener(function (object) {
-    let internalUrl = chrome.runtime.getURL("assets/settings.html");
-    chrome.tabs.create({ url: internalUrl });
-});
+const helperClient = new LocalHelperClient();
 
-
-const gptChat = new ChatGPTClient();
-
-type Message = {
+type GenerateTweetMessage = {
     type: 'generate_tweet';
     props: TweetProps;
-}
+};
+
+type HelperHealthMessage = {
+    type: 'helper_health_check';
+};
+
+type Message = GenerateTweetMessage | HelperHealthMessage;
+
+const isAllowedSender = (sender: chrome.runtime.MessageSender): boolean => {
+    if (!sender.tab?.url) return true;
+
+    try {
+        return allowedOrigins.has(new URL(sender.tab.url).origin);
+    } catch {
+        return false;
+    }
+};
 
 chrome.runtime.onMessage.addListener((message: Message, sender, sendResponse) => {
-    if (!message.type) {
-        return;
+    if (!message?.type) {
+        return false;
     }
 
-    switch(message.type) {
+    switch (message.type) {
         case 'generate_tweet':
-            gptChat.generateTweet(message.props).then(
-                async (text) => {
-                    if (!text) {
-                        return sendResponse(undefined);
-                    }
-                    
-                    let finalText = text;
-                    const savedSettings = await chrome.storage.local.get('isAddSignature')
-                    const isAddSignature = savedSettings.isAddSignature ?? true;
-                    if (isAddSignature) {
-                        finalText = text + ' — tweetGPT';
-                    }
-                    sendResponse(finalText);
-                }, 
-                () => sendResponse(undefined)
-            );
-            break;
+            void (async () => {
+                if (!isAllowedSender(sender)) {
+                    sendResponse(undefined);
+                    return;
+                }
+
+                const savedSettings = await chrome.storage.local.get(STORAGE_KEYS.isAddSignature);
+                const isAddSignature = savedSettings[STORAGE_KEYS.isAddSignature] ?? false;
+                const isReply = Boolean(message.props.replyTo?.trim());
+                const naturalMaxChars = isReply ? 160 : 220;
+                const signature = ' - tweetGPT';
+                const maxChars = isAddSignature ? Math.min(naturalMaxChars, 280 - signature.length) : naturalMaxChars;
+                const texts = await helperClient.generateTweets(message.props, { maxChars });
+                sendResponse(isAddSignature ? texts?.map((text) => `${text}${signature}`) : texts);
+            })().catch((error) => {
+                console.error(error);
+                sendResponse(undefined);
+            });
+            return true;
+
+        case 'helper_health_check':
+            void helperClient.checkConnection().then(sendResponse, (error) => {
+                console.error(error);
+                sendResponse({ reachable: false, message: 'Helper check failed.' });
+            });
+            return true;
     }
 
-    return true;
+    return false;
 });

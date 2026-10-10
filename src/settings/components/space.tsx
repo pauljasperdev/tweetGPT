@@ -1,5 +1,3 @@
-import styled from "styled-components";
+import * as React from 'react';
 
-export const Space = styled.div((props: { height: number }) => `
-    height: ${props.height}px;
-`);
+export const Space = ({ height }: { height: number }) => <div style={{ height }} />;

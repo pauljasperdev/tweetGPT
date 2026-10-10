@@ -2,7 +2,8 @@
     "name": "TweetGPT",
     "manifest_version": 3,
     "version": "2.0.3",
-    "description": "Helps writing tweets using chatGPT",
+    "description": "Helps writing tweets using a local Codex helper",
+    "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnQ8+D3YnQO4C7VfCcomYSVroFQXEVrK4G+BdT3GP1yEwrtNEUkD1KW/cFUnKw/7EXuVRSguQEdWn7r66ouy8BoMg+jf1TR8mzJ0V7HRFsDJeuwIjpqksiDZnJuER1RlB02rOhxc1DPaYgpn7QVV0rmGTwLOn/F51Nz8YDkp28hFM14WETvJggh/P0I6O+zjLH41Tz9ZIVkIstdEPjejGccRh3lcpcAfvfECzlZSFGpBXzZmzHrhMKxzYlOx4vzqAv6MeIEbWj6b7N2m4v/uC8Gqz4hPSakWHzvxK0gFngY3GXcpnPAbh9jqlQdWDF2oxilxz6LL9N8eKeUOi2X9TGQIDAQAB",
     "permissions": [
       "storage",
       "scripting",
@@ -11,11 +12,8 @@
     "host_permissions": [
       "https://twitter.com/*",
       "https://x.com/*",
-      "https://api.openai.com/*"
+      "http://127.0.0.1/*"
     ],
-    "externally_connectable": {
-      "matches": ["https://twitter.com/*", "https://x.com/*"]
-    },
     "icons": {
         "16": "icons/16.png",
         "32": "icons/32.png",

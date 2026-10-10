@@ -1,6 +1,8 @@
+export const inputSelector = "div[data-testid^='tweetTextarea_'][role='textbox'], div[data-testid^='tweetTextarea_'][contenteditable='true']";
+
 // can be more optimised, but ¯\_(ツ)_/¯, typically common container is just 2-3 levels higher
 export const findClosestInput: (el: Element) => HTMLElement | null = (el) => {
-    const contentEditableEl = el.querySelector("div[data-testid^='tweetTextarea_'][role='textbox'], div[data-testid^='tweetTextarea_'][contenteditable='true']") as HTMLElement;
+    const contentEditableEl = el.querySelector(inputSelector) as HTMLElement;
     if (contentEditableEl) {
         return contentEditableEl;
     }

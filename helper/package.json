@@ -1,0 +1,30 @@
+{
+  "name": "tweetgpt-local-helper",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local-only TweetGPT helper that bridges the Chrome extension to Pi/Codex auth.",
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "start": "node dist/src/index.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "tsx --test test/*.test.ts",
+    "verify": "tsx scripts/verify-helper.ts",
+    "auth:login": "tsx src/login.ts",
+    "auth:status": "tsx src/auth-status.ts"
+  },
+  "dependencies": {
+    "@earendil-works/pi-ai": "1.1.0",
+    "@earendil-works/pi-coding-agent": "1.1.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "tsx": "4.23.15",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

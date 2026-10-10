@@ -1,44 +1,36 @@
 import { wait } from "../../utils/wait";
+import { STORAGE_KEYS, StoredSettings } from "../../shared/storage_keys";
+import { findClosestInput } from "./find_closest_input";
 
 const gptIconSrc = chrome.runtime.getURL("icons/button.svg");
 const gptIconErrorSrc = chrome.runtime.getURL("icons/button_error.svg");
-const tweetTypes: Array<{ emoji: string; type: string; }> = [
-    {emoji: '👍', type: 'supportive'}, 
-    {emoji: '🎩', type: 'snarky'}, 
-    {emoji: '🌤️', type: 'optimistic'},
-    {emoji: '🔥', type: 'controversial'}, 
-    {emoji: '🤩', type: 'excited'},
-    {emoji: '🧠', type: 'smart'},
-    {emoji: '🤠', type: 'hillbilly'},
-    {emoji: '🏴‍☠️', type: 'pirate'},
-    {emoji: '🤣', type: 'humorous'},
-    {emoji: '🙄', type: 'passive aggressive'}
-];
 
-export const addGPTButton = async (toolbarEl: Element, onClick: (type: string, topic?: string) => Promise<void>) => {
-    addGPTButtonWithType(toolbarEl, onClick);
-}
+// Stand-in until new tweets get a real topic source.
+const PLACEHOLDER_TOPIC = 'Twitter';
+const DRAFT_COUNT = 5;
 
 const maybeReturnTopic = async (): Promise<string | undefined> => {
-    const replyState = await chrome.storage.local.get('isAddTopicForReplies');
-    const isAddTopicForReplies = replyState.isAddTopicForReplies ?? false;
-
-    const lastState = await chrome.storage.local.get('lastTopic');
-    const lastTopic = lastState.lastTopic ?? '';
-
     const replyToTweet = document.querySelector("article[data-testid=\"tweet\"][tabindex=\"-1\"]");
-
-    let topic: string | undefined;
-
-    if (!replyToTweet || isAddTopicForReplies) {
-        topic = window.prompt("What do you want to tweet about?", lastTopic) || 'Twitter';
-        await chrome.storage.local.set({'lastTopic': topic});
+    if (!replyToTweet) {
+        return PLACEHOLDER_TOPIC;
     }
 
+    const state = await chrome.storage.local.get<StoredSettings>([STORAGE_KEYS.isAddTopicForReplies, STORAGE_KEYS.lastTopic]);
+    if (!state.isAddTopicForReplies) {
+        return undefined;
+    }
+
+    const topic = window.prompt("What do you want to tweet about?", state.lastTopic ?? '') || PLACEHOLDER_TOPIC;
+    await chrome.storage.local.set({ [STORAGE_KEYS.lastTopic]: topic });
     return topic;
 }
 
-const addGPTButtonWithType = (toolbarEl: Element, onClick: (type: string, topic?: string) => Promise<void>) => {
+export const addGPTButton = (
+    toolbarEl: Element,
+    generate: (topic?: string) => Promise<string[] | undefined>,
+    onPick: (text: string) => void,
+    openNow: boolean,
+) => {
     if (toolbarEl.querySelector(".gptIconWrapper")) {
         return;
     }
@@ -54,82 +46,109 @@ const addGPTButtonWithType = (toolbarEl: Element, onClick: (type: string, topic?
         </div>
     `, "text/html");
     const iconWrap = doc.querySelector("div[id=\"gptButton\"]")! as HTMLDivElement;
-    
+
     // attach to container
     buttonContainer.appendChild(iconWrap);
 
-    iconWrap.onclick = async () => {
+    const open = async () => {
         const topic = await maybeReturnTopic();
-        const bodyRect = document.body.getBoundingClientRect();
-        const elemRect = iconWrap.getBoundingClientRect();
+        const picker = openPicker(iconWrap, toolbarEl);
 
-        const top   = elemRect.top - bodyRect.top;
-        const left = elemRect.left - bodyRect.left + 40;
-        let optionsList: HTMLDivElement;
-        let dismissHandler: GlobalEventHandlers["onclick"];
-        optionsList = createOptionsList(async (type: string) => {
-            if (dismissHandler) {
-                document.body.removeEventListener('click', dismissHandler);
-            }
-            if (optionsList) {
-                optionsList.remove();
-            }
+        iconWrap.classList.add("loading");
+        const texts = await generate(topic);
+        iconWrap.classList.remove("loading");
 
-            iconWrap.classList.add("loading");
-            await onClick(type, topic);
-            iconWrap.classList.remove("loading");
-        });
+        if (texts?.length) {
+            picker.show(texts, onPick);
+        } else {
+            picker.close();
+            showErrorButton(toolbarEl);
+        }
+    }
 
-        // adding settings button
-        const separator = document.createElement("div");
-        separator.classList.add("gptSeparator");
-        optionsList.appendChild(separator);
-        const item = document.createElement("div");
-        item.classList.add("gptSelector");
-        item.innerHTML = `⚙️&nbsp;&nbsp;Settings`;
-        item.onclick = (e) => {
-            e.stopPropagation();
-            const url = chrome.runtime.getURL("assets/settings.html");
-            window.open(url, '_blank')?.focus();
-        };
-        optionsList.appendChild(item);
-
-
-        optionsList.style.left = `${left}px`;
-        optionsList.style.top = `${top}px`;
-
-        document.body.appendChild(optionsList);
-        dismissHandler = () => {
-            if (dismissHandler) {
-                document.body.removeEventListener('click', dismissHandler);
-            }
-            if (optionsList) {
-                optionsList.remove();
-            }
-        };
-
-        window.setTimeout(() => {
-            document.body.addEventListener('click', dismissHandler!);
-        }, 1);
+    iconWrap.onclick = open;
+    if (openNow) {
+        void open();
     }
 }
 
-const createOptionsList = (onClick: (type: string) => Promise<void>) => {
+// Opens next to the button with placeholders, so something is on screen while the drafts are written.
+const openPicker = (anchor: HTMLElement, toolbarEl: Element) => {
     const container = document.createElement("div");
     container.classList.add("gptSelectorContainer");
+    container.onclick = (e) => e.stopPropagation();
+    // keep focus in the composer while a draft is picked
+    container.onmousedown = (e) => e.preventDefault();
 
-    for(const tt of tweetTypes) {
-        const item = document.createElement("div");
-        item.classList.add("gptSelector");
-        item.innerHTML = `${tt.emoji}&nbsp;&nbsp;${tt.type}`;
-        item.onclick = (e) => {
-            e.stopPropagation();
-            onClick(tt.type);
-        };
-        container.appendChild(item);
+    // follow the active X theme; X paints its background on <body> or on the root element
+    const inputEl = findClosestInput(toolbarEl);
+    const pageBackground = [document.body, document.documentElement]
+        .map((el) => getComputedStyle(el).backgroundColor)
+        .find((color) => color !== 'rgba(0, 0, 0, 0)');
+    if (inputEl && pageBackground) {
+        container.style.backgroundColor = pageBackground;
+        container.style.color = getComputedStyle(inputEl).color;
     }
 
-    return container;
+    // X navigates without reloading, which would leave the picker floating over the next page
+    const openedAt = location.href;
+    const navigationWatch = window.setInterval(() => {
+        if (location.href !== openedAt) {
+            close();
+        }
+    }, 500);
+
+    const close = () => {
+        window.clearInterval(navigationWatch);
+        document.body.removeEventListener('click', close);
+        container.remove();
+    };
+
+    const drafts = document.createElement("div");
+    for (let i = 0; i < DRAFT_COUNT; i += 1) {
+        const placeholder = document.createElement("div");
+        placeholder.classList.add("gptPlaceholder");
+        drafts.appendChild(placeholder);
+    }
+    container.appendChild(drafts);
+
+    const settings = document.createElement("button");
+    settings.classList.add("gptSelector", "gptSettings");
+    settings.textContent = "Settings";
+    settings.onclick = () => {
+        const url = chrome.runtime.getURL("assets/settings.html");
+        window.open(url, '_blank')?.focus();
+    };
+    container.appendChild(settings);
+
+    const place = () => {
+        const bodyRect = document.body.getBoundingClientRect();
+        const anchorRect = anchor.getBoundingClientRect();
+        container.style.left = `${anchorRect.left - bodyRect.left + 40}px`;
+        container.style.top = `${anchorRect.top - bodyRect.top}px`;
+    };
+
+    place();
+    document.body.appendChild(container);
+    // deferred so the click that opened the picker does not dismiss it
+    window.setTimeout(() => document.body.addEventListener('click', close), 1);
+
+    const show = (texts: string[], onPick: (text: string) => void) => {
+        // the page may have shifted while the drafts were written
+        place();
+        drafts.replaceChildren(...texts.map((text) => {
+            const draft = document.createElement("button");
+            draft.classList.add("gptSelector");
+            draft.textContent = text;
+            draft.onclick = () => {
+                close();
+                onPick(text);
+            };
+            return draft;
+        }));
+    };
+
+    return { show, close };
 }
 
 export const showErrorButton = async (toolbarEl: Element) => {

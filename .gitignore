@@ -8,3 +8,9 @@ node_modules/
 */.DS_Store
 .DS_Store
 *.zip
+
+helper/node_modules/
+helper/dist/
+helper/.local/
+helper/.verify-artifacts/
+.extension-package/
