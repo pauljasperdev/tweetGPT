@@ -167,7 +167,7 @@ async function runCase(baseUrl: string, caseDef: CaseDef): Promise<void> {
   if (caseDef.expect.model && parsed.model !== caseDef.expect.model) failures.push(`model ${parsed.model} !== ${caseDef.expect.model}`);
   if (caseDef.expect.maxTextLength !== undefined) {
     const texts: unknown[] = Array.isArray(parsed.texts) ? parsed.texts : [];
-    if (texts.length !== 5 || new Set(texts).size !== 5) failures.push(`expected 5 distinct texts, got ${JSON.stringify(parsed.texts)}`);
+    if (texts.length < 1 || texts.length > 5 || new Set(texts).size !== texts.length) failures.push(`expected 1 to 5 distinct texts, got ${JSON.stringify(parsed.texts)}`);
     for (const text of texts) {
       if (typeof text !== "string" || text.length === 0) failures.push("text is empty/non-string");
       else if (text.length > caseDef.expect.maxTextLength) failures.push(`text length ${text.length} > ${caseDef.expect.maxTextLength}`);

@@ -91,6 +91,6 @@ Do not invent a sale, a customer, an MRR number, a tool he did not mention, or a
 
 # Output
 
-Return exactly 5 replies. Number them. Each one must be sendable as-is. Make them different moves, not five phrasings of the same sentence. If the post only deserves a two-word reply, one of the five can be that short. The others still have to be things he would send, not filler.
+Return 5 replies, or fewer when the post does not earn five. Number them. Each one must be sendable as-is. Make them different moves, not phrasings of the same sentence. If the post only deserves a two-word reply, one of them can be that short. The others still have to be things he would send, so leave out filler instead of padding to five.
 
 No preamble. No "here's why this works."

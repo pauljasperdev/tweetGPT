@@ -67,7 +67,7 @@ When you open Twitter/X, you will see this icon under the tweet section:
 
 <img src="./docs/screenshot.png" height="120">
 
-On a tweet you can reply to, the reply box is focused and five drafts open by themselves, written in the voice described in `helper/voice.md`. Press the icon to get five new ones. Pick one and it is inserted into the composer, where you can keep editing.
+On a tweet you can reply to, the reply box is focused and up to five drafts open by themselves, written in the voice described in `helper/voice.md`. Press the icon to get new ones. Pick one and it is inserted into the composer, where you can keep editing.
 
 For a reply, it generates based on the original tweet. A new tweet uses a placeholder topic for now.
 
